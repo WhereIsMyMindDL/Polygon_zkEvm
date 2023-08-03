@@ -4,13 +4,10 @@
 
 Основные модули:
 
-Supply(ETH) / borrow (random USDT, USDC, MATIC) 0vix
-
-Wrap ETH
-
-Mint / bridge Merkly NFT with L0
-
-Bungee refuel (to random network BSC, Gnosis< Aurora)
+1. Supply(ETH) / borrow (random USDT, USDC, MATIC) 0vix
+2. Wrap ETH
+3. Mint / bridge Merkly NFT with L0
+4. Bungee refuel (to random network BSC, Gnosis< Aurora)
 
 ![image](https://github.com/WhereIsMyMindDL/Polygon_zkEvm/assets/99168300/14f23161-875d-43dd-96c4-0de6dc5f88fc)
 
