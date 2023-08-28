@@ -21,6 +21,7 @@ shuffle = True                                                      # True / Fal
 waiting_gas = 35                                                    # максимальный газ в сети эфир, при котором скрипт будет работать
 decimal_places = 8                                                  # количество знаков, после запятой для генерации случайных чисел
 rpc = 'https://polygon-zkevm.rpc.thirdweb.com'                      # rpc ноды
+use_proxies = True                                                  # True / False. Если True, тогда будет использовать прокси (прокси = приватники)
 
 #----modules-options----#
 supply_ether_0vix = True                                            # True / False
@@ -30,13 +31,11 @@ bungee_refuelgas = True                                             # True / Fal
 merkly_NFT_mint_and_bridge = True                                   # True / False
 
 #------bot-options------#
-bot_status = False                                                  # True / False если нужty telegram bot
-bot_token  = ''                                                     # telegram bot token
-bot_id     = 0                                                      # telegram id
+bot_status = True                                                   # True / False
+bot_token  = ''       						    # telegram bot token
+bot_id     = 0                                              	    # telegram id
 
 # =================================== end-options =================================== #
-
-
 
 
 logger.remove()
@@ -51,6 +50,8 @@ send_list = []
 
 with open('wallets.txt', 'r') as file:     # privatekey в файл wallets.txt
 	wallets = [row.strip() for row in file]
+with open('proxies.txt', 'r') as file:     # login:password@ip:port в файл proxy.txt
+	proxies = [row.strip() for row in file]
 
 def sleeping_wallets(x):
     for i in trange(x, desc=f'{Fore.LIGHTBLACK_EX}sleep...', ncols=50, bar_format='{desc}  {n_fmt}/{total_fmt}s |{bar}| {percentage:3.0f}%'):
@@ -344,13 +345,26 @@ def sb0vix(address, private_key, value):
         sleeping_transactions(random.randint(delay_transactions[0], delay_transactions[1]))
         borrow_0vix(address, private_key, value, retry=0)
 
+def check_rpc(rpc_url, retry = 1):
+    if rpc_url.is_connected() == True:
+        return rpc_url.is_connected()
+    else:
+        logger.error(f'error connect to rpc... sleep 10 sec')
+        time.sleep(10)
+        if retry == 2:
+            logger.error(f'failed')
+            return rpc_url.is_connected()
+        check_rpc(rpc_url, retry+1)
+
 if __name__ == '__main__':
     intro()
     rpc_url = Web3(Web3.HTTPProvider(rpc))
     count_wallets = len(wallets)
     number_wallets = 0
     activities_list = []
-
+    proxy_list = []
+    for i in proxies:
+        proxy_list.append(i)
     if supply_ether_0vix == True:
         activities_list.append(sb0vix)
     if wrap_ether == True:
@@ -366,38 +380,42 @@ if __name__ == '__main__':
 
     def start():
         global number_wallets, address, private_key, value
-        if rpc_url.is_connected() == True:
-            while wallets:
-                send_list.clear()
-                number_wallets += 1
-                private_key = wallets.pop(0)
-                account = rpc_url.eth.account.from_key(private_key)
-                address = account.address
+        while wallets:
+            if use_proxies == True:
+                try:
+                    proxy = proxy_list[number_wallets]
+                    rpc_url = Web3(Web3.HTTPProvider(rpc, request_kwargs={"proxies": {'https': "http://" + proxy, 'http': "http://" + proxy}}))
+                except:
+                    rpc_url = Web3(Web3.HTTPProvider(rpc))
+            else:
+                rpc_url = Web3(Web3.HTTPProvider(rpc))
 
-                print(f'{number_wallets}/{count_wallets} - {address}\n')
-                send_list.append(f'{number_wallets}/{count_wallets} : {address}')
+            send_list.clear()
+            number_wallets += 1
+            private_key = wallets.pop(0)
+            account = rpc_url.eth.account.from_key(private_key)
+            address = account.address
 
-                random.shuffle(activities_list)
+            print(f'{number_wallets}/{count_wallets} - {address}\n')
+            send_list.append(f'{number_wallets}/{count_wallets} : {address}')
 
-                wait_gas()
+            random.shuffle(activities_list)
 
-                for i in range(len(activities_list)):
-                    value = round(random.uniform(value_eth[0], value_eth[1]), decimal_places)
-                    activities_list[i](address, private_key, value)
-                    if i != len(activities_list)-1:
-                        sleeping_transactions(random.randint(delay_transactions[0], delay_transactions[1]))
+            wait_gas()
 
-                if bot_status == True:
-                    if number_wallets == count_wallets:
-                        send_list.append(f'\nSubscribe: https://t.me/CryptoMindYep')
-                    send_message()
-                if number_wallets != count_wallets:
-                    sleeping_wallets(random.randint(delay_wallets[0], delay_wallets[1]))
-                    print()
-        else:
-            logger.info(f'RPC not working... try again in 60 sec')
-            time.sleep(60)
-            start()
+            for i in range(len(activities_list)):
+                value = round(random.uniform(value_eth[0], value_eth[1]), decimal_places)
+                activities_list[i](address, private_key, value)
+                if i != len(activities_list)-1:
+                    sleeping_transactions(random.randint(delay_transactions[0], delay_transactions[1]))
+
+            if bot_status == True:
+                if number_wallets == count_wallets:
+                    send_list.append(f'\nSubscribe: https://t.me/CryptoMindYep')
+                send_message()
+            if number_wallets != count_wallets:
+                sleeping_wallets(random.randint(delay_wallets[0], delay_wallets[1]))
+                print()
 
 
     start()
